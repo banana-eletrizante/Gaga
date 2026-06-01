@@ -4,7 +4,7 @@ export const GeminiService = {
   analyzeImage: async (base64Image) => {
     const apiKey = ENV.GEMINI_API_KEY;
 
-    if (!apiKey || apiKey === "SUA_CHAVE_API_AQUI") {
+    if (!apiKey || apiKey === "AIzaSyC4wjPnF4NOLYIoGwElaqUiMRWenNdbRBc") {
       throw new Error("Chave de API do Gemini não configurada em src/config/env.js");
     }
 

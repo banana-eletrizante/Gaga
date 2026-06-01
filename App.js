@@ -14,6 +14,7 @@ export default function App() {
     resultText,
     cameraRef,
     captureAndAnalyze,
+    checkStatus,
   } = useAssistiveCamera();
 
   if (!permission) {
@@ -45,35 +46,45 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* 1. Preview da Câmera isolado sem filhos */}
+      {/* 1. Preview da câmera isolado em segundo plano */}
       <CameraView style={StyleSheet.absoluteFillObject} ref={cameraRef} facing="back" />
       
-      {/* 2. Camada de botão sobreposta de forma absoluta */}
+      {/* 2. Camada de interface dividida em duas metades (50% / 50%) */}
       <View style={StyleSheet.absoluteFillObject}>
+        
+        {/* Metade Superior: Análise de Imagem (Gemini) */}
         <AccessibleButton
           onPress={captureAndAnalyze}
           disabled={isAnalyzing}
-          label="Analisar cenário"
-          hint="Dê dois toques na tela para tirar uma foto do ambiente e ouvir a descrição."
+          label="Descrever cenário à frente"
+          hint="Toque na metade superior para tirar uma foto do ambiente e ouvir a descrição."
         >
-          {isAnalyzing ? (
-            <View style={styles.overlayContainer}>
-              <ActivityIndicator size="large" color={theme.colors.loading} />
-              <Text style={styles.overlayText}>Processando imagem...</Text>
-            </View>
-          ) : (
-            <View style={styles.overlayContainer}>
-              <Text style={styles.instructionText}>
-                Toque na tela para analisar o ambiente
-              </Text>
-              {resultText !== '' && (
-                <Text style={styles.resultText} numberOfLines={8}>
-                  {resultText}
-                </Text>
-              )}
-            </View>
-          )}
+          <View style={styles.halfOverlayContainer}>
+            <Text style={styles.instructionText}>
+              Metade Superior: Descrever cenário
+            </Text>
+          </View>
         </AccessibleButton>
+
+        {/* Metade Inferior: Status e Luminosidade */}
+        <AccessibleButton
+          onPress={checkStatus}
+          disabled={isAnalyzing}
+          label="Verificar bateria e iluminação"
+          hint="Toque na metade inferior para ouvir o nível da bateria e se as luzes estão acesas."
+        >
+          <View style={styles.halfOverlayContainer}>
+            <Text style={styles.instructionText}>
+              Metade Inferior: Verificar bateria e luzes
+            </Text>
+            {resultText !== '' && (
+              <Text style={styles.resultText} numberOfLines={5}>
+                {resultText}
+              </Text>
+            )}
+          </View>
+        </AccessibleButton>
+        
       </View>
     </View>
   );
@@ -110,39 +121,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  overlayContainer: {
+  halfOverlayContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
     width: '100%',
-    paddingBottom: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)', // Escurecimento para garantir legibilidade
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', // Linha divisória sutil entre as metades
     paddingHorizontal: theme.spacing.medium,
-  },
-  overlayText: {
-    color: theme.colors.textPrimary,
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: theme.spacing.medium,
-    textAlign: 'center',
   },
   instructionText: {
     color: theme.colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     textAlign: 'center',
     backgroundColor: theme.colors.overlay,
     paddingHorizontal: theme.spacing.medium,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: theme.spacing.medium,
+    marginVertical: theme.spacing.small,
   },
   resultText: {
     color: theme.colors.textPrimary,
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     backgroundColor: 'rgba(0,0,0,0.85)',
     padding: theme.spacing.medium,
     borderRadius: 8,
     maxWidth: '95%',
+    marginTop: theme.spacing.small,
   },
 });

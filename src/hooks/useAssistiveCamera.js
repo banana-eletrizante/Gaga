@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useCameraPermissions } from 'expo-camera';
 import { SpeechService } from '../services/speech';
 import { GeminiService } from '../services/gemini';
+import { SystemStatusService } from '../services/systemStatus';
 
 export const useAssistiveCamera = () => {
   const [permission, requestPermission] = useCameraPermissions();
@@ -11,7 +12,7 @@ export const useAssistiveCamera = () => {
 
   useEffect(() => {
     SpeechService.speak(
-      "Aplicativo de assistência iniciado. Toque duas vezes em qualquer lugar da tela para descrever o cenário."
+      "Aplicativo de assistência visual iniciado. A tela está dividida ao meio. Toque na metade superior para descrever o ambiente à sua frente. Toque na metade inferior para ouvir o nível de bateria e iluminação."
     );
   }, []);
 
@@ -25,7 +26,7 @@ export const useAssistiveCamera = () => {
       await SpeechService.speak("Processando imagem, por favor aguarde.");
 
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.4, 
+        quality: 0.4,
         base64: true,
       });
 
@@ -39,9 +40,24 @@ export const useAssistiveCamera = () => {
 
     } catch (error) {
       console.error(error);
-      const errorMsg = "Ocorreu uma falha no processamento. Toque novamente para tentar.";
+      const errorMsg = "Ocorreu uma falha no processamento. Toque na metade superior para tentar novamente.";
       setResultText(errorMsg);
       await SpeechService.speak(errorMsg);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const checkStatus = async () => {
+    if (isAnalyzing) return;
+
+    try {
+      setIsAnalyzing(true);
+      setResultText('Lendo sensores...');
+      const statusText = await SystemStatusService.checkStatus();
+      setResultText(statusText);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -54,5 +70,6 @@ export const useAssistiveCamera = () => {
     resultText,
     cameraRef,
     captureAndAnalyze,
+    checkStatus,
   };
 };
