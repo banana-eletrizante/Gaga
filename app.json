@@ -2,29 +2,62 @@
   "expo": {
     "name": "Gaga",
     "slug": "Gaga",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "O Gaga usa a câmera para descrever o ambiente, ler textos e identificar obstáculos para pessoas com deficiência visual.",
+        "NSLocationWhenInUseUsageDescription": "O Gaga pode anunciar sua localização aproximada quando você pedir o status do dispositivo.",
+        "NSMotionUsageDescription": "O Gaga usa o acelerômetro para descrever o ambiente quando você sacode o celular."
+      },
+      "bundleIdentifier": "com.andresoda0.Gaga"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.andresoda0.Gaga"
+      "package": "com.andresoda0.Gaga",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_NETWORK_STATE",
+        "VIBRATE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O Gaga usa a câmera para descrever o ambiente e ler textos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Gaga pode anunciar sua localização aproximada no status."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "5f5072eb-c527-4b95-859b-4ec5a1bb4580"
-      }
+      },
+      "geminiApiKey": ""
     }
   }
 }

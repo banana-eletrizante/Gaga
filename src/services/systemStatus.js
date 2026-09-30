@@ -1,12 +1,10 @@
 import { Platform } from 'react-native';
 import * as Battery from 'expo-battery';
+import * as Network from 'expo-network';
+import * as Location from 'expo-location';
 import { LightSensor } from 'expo-sensors';
 import { SpeechService } from './speech';
 
-/**
- * Função auxiliar que captura uma leitura única do sensor de luz (apenas Android).
- * Retorna uma Promise resolvida com o nível em Lux ou null.
- */
 const getInstantLightLevel = () => {
   return new Promise((resolve) => {
     if (Platform.OS !== 'android') {
@@ -15,76 +13,130 @@ const getInstantLightLevel = () => {
     }
 
     let resolved = false;
-    const subscription = LightSensor.addListener(({ light }) => {
-      if (!resolved) {
-        resolved = true;
-        subscription.remove(); // Desinscreve imediatamente para poupar bateria
-        resolve(light);
-      }
-    });
+    let subscription = null;
 
-    // Timeout de segurança caso o sensor falhe em responder
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        subscription.remove();
-        resolve(null);
-      }
-    }, 1500);
+    const finish = (value) => {
+      if (resolved) return;
+      resolved = true;
+      if (subscription) subscription.remove();
+      resolve(value);
+    };
+
+    try {
+      subscription = LightSensor.addListener(({ light }) => finish(light));
+    } catch (_) {
+      finish(null);
+      return;
+    }
+
+    setTimeout(() => finish(null), 1200);
   });
 };
 
+const classifyLight = (lightLevel) => {
+  if (lightLevel === null || lightLevel === undefined) {
+    return Platform.OS === 'ios'
+      ? 'Sensor de iluminação indisponível no iOS.'
+      : 'Não foi possível ler o sensor de luminosidade.';
+  }
+  if (lightLevel < 10) return 'O ambiente está muito escuro. As luzes parecem apagadas.';
+  if (lightLevel < 50) return 'A luminosidade está fraca.';
+  if (lightLevel < 150) return 'A iluminação está média.';
+  return 'O ambiente está bem iluminado.';
+};
+
+const formatTime = () => {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const weekdays = [
+    'domingo',
+    'segunda-feira',
+    'terça-feira',
+    'quarta-feira',
+    'quinta-feira',
+    'sexta-feira',
+    'sábado',
+  ];
+  return `Agora são ${hours} horas e ${minutes}. Hoje é ${weekdays[now.getDay()]}.`;
+};
+
+const getNetworkText = async () => {
+  try {
+    const state = await Network.getNetworkStateAsync();
+    if (!state.isConnected) return 'Sem conexão com a internet.';
+    if (state.type === Network.NetworkStateType.WIFI) return 'Conectado no Wi-Fi.';
+    if (state.type === Network.NetworkStateType.CELLULAR) return 'Usando dados móveis.';
+    return 'Internet disponível.';
+  } catch (_) {
+    return 'Não foi possível verificar a rede.';
+  }
+};
+
+const getLocationText = async () => {
+  try {
+    const services = await Location.hasServicesEnabledAsync();
+    if (!services) return 'Serviço de localização desligado.';
+
+    const permission = await Location.getForegroundPermissionsAsync();
+    if (!permission.granted) {
+      const asked = await Location.requestForegroundPermissionsAsync();
+      if (!asked.granted) return 'Permissão de localização não concedida.';
+    }
+
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    const [place] = await Location.reverseGeocodeAsync(position.coords);
+    if (!place) {
+      return `Localização aproximada: latitude ${position.coords.latitude.toFixed(3)}, longitude ${position.coords.longitude.toFixed(3)}.`;
+    }
+    const street = [place.street, place.streetNumber].filter(Boolean).join(', ');
+    const city = [place.district, place.city, place.region].filter(Boolean).join(', ');
+    return `Você está perto de ${[street, city].filter(Boolean).join('. ')}.`;
+  } catch (_) {
+    return 'Não foi possível obter a localização.';
+  }
+};
+
 export const SystemStatusService = {
-  /**
-   * Analisa a bateria e a iluminação, gerando uma resposta em áudio.
-   * @returns {Promise<string>} O texto consolidado que foi falado.
-   */
-  checkStatus: async () => {
+  checkStatus: async ({ includeLocation = false, speechOptions = {} } = {}) => {
     try {
-      // 1. Coleta nível de bateria
       const batteryLevelRaw = await Battery.getBatteryLevelAsync();
-      const batteryLevel = Math.round(batteryLevelRaw * 100);
-      
-      // 2. Coleta estado da bateria (se está carregando ou não)
+      const batteryLevel = Math.round(Math.max(0, batteryLevelRaw) * 100);
       const batteryState = await Battery.getBatteryStateAsync();
-      const isCharging = 
-        batteryState === Battery.BatteryState.CHARGING || 
+      const isCharging =
+        batteryState === Battery.BatteryState.CHARGING ||
         batteryState === Battery.BatteryState.FULL;
 
-      const batteryText = `Bateria em ${batteryLevel} por cento${isCharging ? ', carregando' : ', descarregando'}.`;
+      const batteryText = `Bateria em ${batteryLevel} por cento${
+        isCharging ? ', carregando' : ''
+      }.`;
 
-      // 3. Coleta nível de luz ambiente
-      const lightLevel = await getInstantLightLevel();
-      let lightText = '';
+      const [lightLevel, networkText] = await Promise.all([
+        getInstantLightLevel(),
+        getNetworkText(),
+      ]);
 
-      if (lightLevel === null) {
-        lightText = Platform.OS === 'ios' 
-          ? 'Sensor de iluminação indisponível no sistema iOS.' 
-          : 'Não foi possível acessar o sensor de luminosidade.';
-      } else {
-        // Classificação do nível de luminosidade em Lux
-        if (lightLevel < 10) {
-          lightText = 'O cômodo está muito escuro, indicando que as luzes estão apagadas.';
-        } else if (lightLevel >= 10 && lightLevel < 50) {
-          lightText = 'A luminosidade do ambiente está fraca.';
-        } else if (lightLevel >= 50 && lightLevel < 150) {
-          lightText = 'A iluminação está média, típica de ambientes residenciais.';
-        } else {
-          lightText = 'O ambiente está bem iluminado, indicando que as luzes estão acesas.';
-        }
+      const parts = [
+        formatTime(),
+        batteryText,
+        classifyLight(lightLevel),
+        networkText,
+      ];
+
+      if (includeLocation) {
+        parts.push(await getLocationText());
       }
 
-      const statusText = `${batteryText} ${lightText}`;
-      
-      // 4. Executa a reprodução sonora
-      await SpeechService.speak(statusText);
-
+      const statusText = parts.join(' ');
+      await SpeechService.speak(statusText, speechOptions);
       return statusText;
     } catch (error) {
       console.error('Erro no SystemStatusService:', error);
       const errorMsg = 'Falha ao ler os sensores do dispositivo.';
-      await SpeechService.speak(errorMsg);
+      await SpeechService.speak(errorMsg, speechOptions);
       return errorMsg;
     }
-  }
+  },
 };
