@@ -1,31 +1,50 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { theme } from '../styles/theme';
+import { HapticService } from '../services/haptics';
 
-export const AccessibleButton = ({ onPress, disabled, children, label, hint }) => {
+export const AccessibleButton = ({
+  onPress,
+  onLongPress,
+  disabled,
+  children,
+  label,
+  hint,
+  style,
+}) => {
   return (
-    <TouchableOpacity
-      style={styles.button}
-      onPress={onPress}
+    <Pressable
+      style={({ pressed }) => [styles.button, style, pressed && styles.pressed, disabled && styles.disabled]}
+      onPress={async () => {
+        if (disabled) return;
+        await HapticService.tap();
+        onPress?.();
+      }}
+      onLongPress={onLongPress}
+      delayLongPress={450}
       disabled={disabled}
-      activeOpacity={0.8}
-      accessible={true}
+      accessible
       accessibilityLabel={label}
       accessibilityHint={hint}
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
     >
       {children}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    flex: 1,
-    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: theme.touchTarget.minHeight,
     minWidth: theme.touchTarget.minWidth,
+  },
+  pressed: {
+    opacity: 0.82,
+  },
+  disabled: {
+    opacity: 0.55,
   },
 });
